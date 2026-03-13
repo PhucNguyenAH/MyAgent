@@ -1,0 +1,48 @@
+name: Build and Deploy to Cloud Run
+
+# This tells GitHub to run the pipeline every time you push to the 'main' branch
+on:
+  push:
+    branches:
+      - main 
+
+env:
+  REGION: australia-southeast1 # Your GCP region (Sydney)
+  GAR_REPO: chatbot-repo       # The name of your Artifact Registry repository
+  SERVICE_NAME: portfolio-chatbot
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker to use Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      - name: Build Docker Image
+        run: |
+          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }} .
+
+      - name: Push Docker Image to Artifact Registry
+        run: |
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE_NAME }}
+          region: ${{ env.REGION }}
+          image: ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          env_vars: |
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
