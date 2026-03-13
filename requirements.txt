@@ -1,0 +1,10 @@
+google-cloud-storage
+langchain-google-community
+langchain-text-splitters
+langchain-community
+langgraph
+langchain[openai]
+langchain-postgres
+unstructured[pdf]
+streamlit
+python-dotenv
