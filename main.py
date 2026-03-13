@@ -24,7 +24,7 @@ embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 vector_store = PGVector(
     embeddings=embeddings,
     collection_name="my_docs",
-    connection="postgresql+psycopg://myuser:mypassword@localhost:5432/vectordb",
+    connection=os.environ.get("DATABASE_URL"),
     use_jsonb=True,
 )
 
