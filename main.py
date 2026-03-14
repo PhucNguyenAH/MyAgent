@@ -20,16 +20,22 @@ dotenv.load_dotenv()
 if not os.environ.get("OPENAI_API_KEY"):
     os.environ["OPENAI_API_KEY"] = getpass.getpass("Enter API key for OpenAI: ")
 
-llm = init_chat_model("gpt-5.4", model_provider="openai")
+@st.cache_resource
+def get_ai_services():
+    # Initialize Models
+    llm = init_chat_model("gpt-5.4", model_provider="openai")
+    embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
-# Connect to the existing database (does NOT add new documents)
-embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-vector_store = PGVector(
-    embeddings=embeddings,
-    collection_name="my_docs",
-    connection=os.environ.get("DATABASE_URL"),
-    use_jsonb=True,
-)
+    # Connect to the existing vector database
+    vector_store = PGVector(
+        embeddings=embeddings,
+        collection_name="my_docs",
+        connection=os.environ.get("DATABASE_URL"),
+        use_jsonb=True,
+    )
+    return llm, embeddings, vector_store
+
+llm, embeddings, vector_store = get_ai_services()
 
 # Define your custom persona and instructions
 base_system_instructions = (
@@ -57,7 +63,6 @@ def retrieve(state: State):
 def generate(state: State):
     docs_content = "\n\n".join(doc.page_content for doc in state["context"])
     
-    # Dynamically build instructions based on whether a JD was uploaded
     current_instructions = base_system_instructions
     if st.session_state.get("jd_context"):
         current_instructions += (
@@ -68,21 +73,35 @@ def generate(state: State):
             "Actively highlight specific matching qualifications, tools, and experiences to articulate exactly why I am a strong candidate for this role."
         )
 
-    # Rebuild the prompt dynamically for this specific turn
     dynamic_prompt = ChatPromptTemplate.from_messages([
         ("system", current_instructions),
         ("human", "{question}"),
     ])
 
     messages = dynamic_prompt.invoke({"question": state["question"], "context": docs_content})
-    response = llm.invoke(messages)
-    return {"answer": response.content}
+    
+    # --- TRUE STREAMING IMPLEMENTATION ---
+    full_response = ""
+    # Create an empty placeholder in the Streamlit UI to write the text into
+    message_placeholder = st.empty()
+    
+    # Stream the chunks directly from OpenAI as they are generated
+    for chunk in llm.stream(messages):
+        full_response += chunk.content
+        # Add a blinking cursor effect while typing
+        message_placeholder.markdown(full_response + "▌")
+    
+    # Remove the cursor when finished
+    message_placeholder.markdown(full_response)
+    
+    return {"answer": full_response}
 
 def response_generator(response):
     for word in response.split(" "):
         yield word + " "
-        time.sleep(0.05)
+        time.sleep(0.01)
 
+@st.cache_data
 def extract_text_from_file(uploaded_file):
     text = ""
     if uploaded_file.name.endswith(".pdf"):
@@ -124,15 +143,15 @@ if __name__ == "__main__":
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # Fixed variable shadowing by using user_query instead of prompt
     if user_query := st.chat_input("What do you want to know about me?"):
         with st.chat_message("user"):
             st.markdown(user_query)
-            
         st.session_state.messages.append({"role": "user", "content": user_query})
-        response = graph.invoke({"question": user_query})
-
+        
         with st.chat_message("assistant"):
-            st.write_stream(response_generator(response['answer']))
+            # The graph.invoke will run 'retrieve' then 'generate'
+            # The 'generate' node will handle the live streaming text directly into this chat_message block
+            response = graph.invoke({"question": user_query})
     
+        # 3. Save the final answer to history
         st.session_state.messages.append({"role": "assistant", "content": response['answer']})
