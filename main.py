@@ -20,7 +20,7 @@ dotenv.load_dotenv()
 if not os.environ.get("OPENAI_API_KEY"):
     os.environ["OPENAI_API_KEY"] = getpass.getpass("Enter API key for OpenAI: ")
 
-llm = init_chat_model("gpt-5.4", model_provider="openai")
+llm = init_chat_model("gpt-5-mini", model_provider="openai")
 
 # Connect to the existing database (does NOT add new documents)
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
