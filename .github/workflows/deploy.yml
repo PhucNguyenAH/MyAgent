@@ -7,8 +7,8 @@ on:
       - master 
 
 env:
-  REGION: australia-southeast1 # Your GCP region (Sydney)
-  GAR_REPO: chatbot-repo       # The name of your Artifact Registry repository
+  REGION: us-central1 
+  GAR_REPO: chatbot-repo  
   SERVICE_NAME: portfolio-chatbot
 
 jobs:
