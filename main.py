@@ -65,7 +65,7 @@ def generate(state: State):
     return {"answer": response.content}
 
 def response_generator(response):
-    for word in response.split():
+    for word in response.split(" "):
         yield word + " "
         time.sleep(0.05)
 
