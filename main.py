@@ -84,7 +84,7 @@ if __name__ == "__main__":
             st.markdown(message["content"])
 
     # Fixed variable shadowing by using user_query instead of prompt
-    if user_query := st.chat_input("What do you want to ask about the applicant?"):
+    if user_query := st.chat_input("What do you want to know about me?"):
         with st.chat_message("user"):
             st.markdown(user_query)
             
