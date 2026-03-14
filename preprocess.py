@@ -32,6 +32,7 @@ def main():
         collection_name="my_docs",
         connection=os.environ.get("DATABASE_URL"),
         use_jsonb=True,
+        pre_delete_collection=True,
     )
 
     vector_store.add_documents(documents=all_splits)
