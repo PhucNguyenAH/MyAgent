@@ -60,30 +60,6 @@ def retrieve(state: State):
     retrieved_docs = vector_store.similarity_search(state["question"])
     return {"context": retrieved_docs}
 
-# def generate(state: State):
-#     docs_content = "\n\n".join(doc.page_content for doc in state["context"])
-    
-#     # Dynamically build instructions based on whether a JD was uploaded
-#     current_instructions = base_system_instructions
-#     if st.session_state.get("jd_context"):
-#         current_instructions += (
-#             "\n\n--- UPLOADED JOB DESCRIPTION ---\n"
-#             "The user has uploaded a Job Description for an AI Engineer or Data Scientist role:\n"
-#             f"{st.session_state['jd_context']}\n\n"
-#             "CRITICAL INSTRUCTION: Analyze my skills and the retrieved context against this Job Description. "
-#             "Actively highlight specific matching qualifications, tools, and experiences to articulate exactly why I am a strong candidate for this role."
-#         )
-
-#     # Rebuild the prompt dynamically for this specific turn
-#     dynamic_prompt = ChatPromptTemplate.from_messages([
-#         ("system", current_instructions),
-#         ("human", "{question}"),
-#     ])
-
-#     messages = dynamic_prompt.invoke({"question": state["question"], "context": docs_content})
-#     response = llm.invoke(messages)
-#     return {"answer": response.content}
-
 def generate(state: State):
     docs_content = "\n\n".join(doc.page_content for doc in state["context"])
     
@@ -166,19 +142,6 @@ if __name__ == "__main__":
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
-
-    # Fixed variable shadowing by using user_query instead of prompt
-    # if user_query := st.chat_input("What do you want to know about me?"):
-    #     with st.chat_message("user"):
-    #         st.markdown(user_query)
-            
-    #     st.session_state.messages.append({"role": "user", "content": user_query})
-    #     response = graph.invoke({"question": user_query})
-
-    #     with st.chat_message("assistant"):
-    #         st.write_stream(response_generator(response['answer']))
-    
-    #     st.session_state.messages.append({"role": "assistant", "content": response['answer']})
 
     if user_query := st.chat_input("What do you want to know about me?"):
         with st.chat_message("user"):
