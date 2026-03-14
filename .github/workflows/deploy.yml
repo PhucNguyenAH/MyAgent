@@ -7,7 +7,7 @@ on:
       - master 
 
 env:
-  REGION: us-central1 
+  REGION: asia-southeast1 
   GAR_REPO: chatbot-repo  
   SERVICE_NAME: portfolio-chatbot
 
