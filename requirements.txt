@@ -9,3 +9,5 @@ unstructured[pdf]
 streamlit
 python-dotenv
 psycopg[binary]
+python-docx
+PyPDF2

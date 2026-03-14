@@ -10,6 +10,9 @@ from langchain_core.documents import Document
 from langgraph.graph import START, StateGraph
 from typing_extensions import List, TypedDict
 from langchain_core.prompts import ChatPromptTemplate
+import PyPDF2
+import docx
+import io
 import dotenv
 
 dotenv.load_dotenv()
@@ -28,9 +31,8 @@ vector_store = PGVector(
     use_jsonb=True,
 )
 
-# rag_prompt = hub.pull("rlm/rag-prompt")
 # Define your custom persona and instructions
-system_instructions = (
+base_system_instructions = (
     "You are the digital avatar of Anh Hoang Phuc Nguyen, a highly skilled AI and Machine Learning Engineer "
     "currently living in Sydney and holding a 485 visa. "
     "You hold a Master of Artificial Intelligence from UTS. "
@@ -43,12 +45,6 @@ system_instructions = (
     "Context: {context}"
 )
 
-# Create the prompt template
-rag_prompt = ChatPromptTemplate.from_messages([
-    ("system", system_instructions),
-    ("human", "{question}"),
-])
-
 class State(TypedDict):
     question: str
     context: List[Document]
@@ -60,7 +56,25 @@ def retrieve(state: State):
 
 def generate(state: State):
     docs_content = "\n\n".join(doc.page_content for doc in state["context"])
-    messages = rag_prompt.invoke({"question": state["question"], "context": docs_content})
+    
+    # Dynamically build instructions based on whether a JD was uploaded
+    current_instructions = base_system_instructions
+    if st.session_state.get("jd_context"):
+        current_instructions += (
+            "\n\n--- UPLOADED JOB DESCRIPTION ---\n"
+            "The user has uploaded a Job Description for an AI Engineer or Data Scientist role:\n"
+            f"{st.session_state['jd_context']}\n\n"
+            "CRITICAL INSTRUCTION: Analyze my skills and the retrieved context against this Job Description. "
+            "Actively highlight specific matching qualifications, tools, and experiences to articulate exactly why I am a strong candidate for this role."
+        )
+
+    # Rebuild the prompt dynamically for this specific turn
+    dynamic_prompt = ChatPromptTemplate.from_messages([
+        ("system", current_instructions),
+        ("human", "{question}"),
+    ])
+
+    messages = dynamic_prompt.invoke({"question": state["question"], "context": docs_content})
     response = llm.invoke(messages)
     return {"answer": response.content}
 
@@ -69,8 +83,35 @@ def response_generator(response):
         yield word + " "
         time.sleep(0.05)
 
+def extract_text_from_file(uploaded_file):
+    text = ""
+    if uploaded_file.name.endswith(".pdf"):
+        # Read PDF
+        reader = PyPDF2.PdfReader(uploaded_file)
+        for page in reader.pages:
+            if page.extract_text():
+                text += page.extract_text() + "\n"
+    elif uploaded_file.name.endswith(".docx"):
+        # Read Word Document
+        doc = docx.Document(uploaded_file)
+        for para in doc.paragraphs:
+            text += para.text + "\n"
+    return text
+
 if __name__ == "__main__":
     st.title("Anh Hoang Phuc Nguyen Chatbot")
+
+    with st.sidebar:
+        st.header("Job Fit Analyzer")
+        st.write("Upload a Job Description to see how my experience aligns.")
+        uploaded_jd = st.file_uploader("Upload PDF or Word Document", type=["pdf", "docx"])
+        
+        if uploaded_jd is not None:
+            jd_text = extract_text_from_file(uploaded_jd)
+            st.session_state['jd_context'] = jd_text
+            st.success("Job Description loaded! Ask me how I fit this role.")
+        else:
+            st.session_state['jd_context'] = None
 
     graph_builder = StateGraph(State).add_sequence([retrieve, generate])
     graph_builder.add_edge(START, "retrieve")
