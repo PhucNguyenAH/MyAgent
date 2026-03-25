@@ -143,7 +143,7 @@ if __name__ == "__main__":
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    if user_query := st.chat_input("What do you want to know about me?"):
+    if user_query := st.chat_input("Ask me some questions and I will answer you"):
         with st.chat_message("user"):
             st.markdown(user_query)
         st.session_state.messages.append({"role": "user", "content": user_query})
